@@ -1,6 +1,18 @@
 # Testing WebServices - restful-booker API Automation
 
-Automated API test suite for the **restful-booker** service using JavaScript native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) and Node.js built-in test runner (`node:test` & `node:assert/strict`).
+Automated API test suite for the **restful-booker** service using JavaScript's native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) and Node.js built-in test runner (`node:test` and `node:assert/strict`).
+
+## Architecture
+
+The test automation framework is separated into three layers:
+
+| Layer | Location | Responsibility |
+|---|---|---|
+| Core | `src/core/` | Reusable HTTP functionality independent of the tested application. `ApiClient` builds requests, query strings, and JSON payloads. |
+| Business | `src/business/pages/` | Application-specific API Page Objects. `AuthPage` and `BookingPage` encapsulate the restful-booker endpoints and authentication details. |
+| Tests | `tests/` | Test scenarios, framework configuration, scenario data, and shared assertions. |
+
+This is an API suite, so Page Objects represent API resources rather than browser screens. Test scenarios interact with `AuthPage` and `BookingPage`, not raw URLs or `fetch`; this keeps endpoint details in the business layer. Shared request handling and assertion helpers reduce duplication without introducing extra abstractions.
 
 ---
 
@@ -64,7 +76,9 @@ Every scenario validates three core aspects:
 
 ## 4. Running API Tests via CLI
 
-The project uses Node.js native test runner (`node:test`) with zero external dependencies.
+The project uses Node.js native test runner (`node:test`) with zero external dependencies. Node.js 18 or later is required for the native Fetch API.
+
+Set `BASE_URL` to run against another restful-booker-compatible environment. If omitted, tests use `https://restful-booker.herokuapp.com`.
 
 ### Run all tests:
 ```bash
@@ -74,6 +88,12 @@ npm test
 ### Run tests with verbose spec reporter:
 ```bash
 npm run test:verbose
+```
+
+PowerShell:
+```powershell
+$env:BASE_URL = "https://restful-booker.herokuapp.com"
+npm test
 ```
 
 ### Run directly with Node:
@@ -101,12 +121,23 @@ An exported Postman Collection is provided:
 
 ```text
 WebServices/
-├── package.json                              # Scripts and project metadata
-├── README.md                                 # Project documentation and guide
+├── package.json
+├── README.md
 ├── src/
-│   └── api.js                               # Native fetch API client wrapper
+│   ├── core/
+│   │   └── api-client.js                     # Project-independent HTTP client
+│   └── business/
+│       └── pages/
+│           ├── auth.page.js                  # Authentication API Page Object
+│           └── booking.page.js               # Booking API Page Object
 ├── tests/
-│   └── restful-booker.test.js                # 5 test scenarios (status, headers, body)
+│   ├── config/
+│   │   └── test-config.js                    # Base URL and Page Object setup
+│   ├── fixtures/
+│   │   └── booking-data.js                   # Reusable scenario data
+│   ├── helpers/
+│   │   └── assertions.js                     # Shared response and booking assertions
+│   └── restful-booker.test.js                # Automated API scenarios
 └── postman/
-    └── Restful-Booker.postman_collection.json # Postman collection for debugging
+    └── Restful-Booker.postman_collection.json
 ```

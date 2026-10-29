@@ -1,146 +1,75 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { authPage, bookingPage } from './config/test-config.js';
 import {
-  createToken,
-  createBooking,
-  getBookingById,
-  updateBooking,
-  deleteBooking,
-} from '../src/api.js';
+  credentials,
+  initialBookingData,
+  updatedBookingData,
+} from './fixtures/booking-data.js';
+import {
+  assertBooking,
+  assertJsonResponse,
+} from './helpers/assertions.js';
 
-describe('Restful-Booker API Test Suite', () => {
+describe('Restful-Booker API test suite', () => {
   let authToken;
   let createdBookingId;
 
-  const initialBookingData = {
-    firstname: 'John',
-    lastname: 'Doe',
-    totalprice: 150,
-    depositpaid: true,
-    bookingdates: {
-      checkin: '2026-11-01',
-      checkout: '2026-11-10',
-    },
-    additionalneeds: 'Breakfast',
-  };
+  it('creates an auth token', async () => {
+    const response = await authPage.createToken(credentials);
+    const body = await assertJsonResponse(response, 200);
 
-  const updatedBookingData = {
-    firstname: 'John',
-    lastname: 'UpdatedDoe',
-    totalprice: 250,
-    depositpaid: false,
-    bookingdates: {
-      checkin: '2026-11-05',
-      checkout: '2026-11-15',
-    },
-    additionalneeds: 'Airport Shuttle',
-  };
-
-  it('Scenario 1: Create auth token and verify response', async () => {
-    const response = await createToken({
-      username: 'admin',
-      password: 'password123',
-    });
-
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.ok, true);
-
-    assert.ok(response.headers.has('content-type'));
-    assert.match(response.headers.get('content-type'), /application\/json/);
-
-    const body = await response.json();
-    assert.ok(body);
-    assert.ok(typeof body.token === 'string');
-    assert.ok(body.token.length > 0);
-
+    assert.ok(body.token);
+    assert.strictEqual(typeof body.token, 'string');
     authToken = body.token;
   });
 
-  it('Scenario 2: Create a new booking', async () => {
-    const response = await createBooking(initialBookingData);
+  it('creates a booking', async () => {
+    const response = await bookingPage.createBooking(initialBookingData);
+    const body = await assertJsonResponse(response, 200);
 
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.ok, true);
-
-    assert.ok(response.headers.has('content-type'));
-    assert.match(response.headers.get('content-type'), /application\/json/);
-
-    const body = await response.json();
-    assert.ok(body);
-    assert.ok(typeof body.bookingid === 'number');
+    assert.ok(Number.isInteger(body.bookingid));
     assert.ok(body.bookingid > 0);
-
-    assert.ok(body.booking);
-    assert.strictEqual(body.booking.firstname, initialBookingData.firstname);
-    assert.strictEqual(body.booking.lastname, initialBookingData.lastname);
-    assert.strictEqual(body.booking.totalprice, initialBookingData.totalprice);
-    assert.strictEqual(body.booking.depositpaid, initialBookingData.depositpaid);
-    assert.deepStrictEqual(body.booking.bookingdates, initialBookingData.bookingdates);
-    assert.strictEqual(body.booking.additionalneeds, initialBookingData.additionalneeds);
-
+    assertBooking(body.booking, initialBookingData);
     createdBookingId = body.bookingid;
   });
 
-  it('Scenario 3: Get created booking by id', async () => {
+  it('retrieves the created booking', async () => {
     assert.ok(createdBookingId);
 
-    const response = await getBookingById(createdBookingId);
+    const response = await bookingPage.getBookingById(createdBookingId);
+    const body = await assertJsonResponse(response, 200);
 
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.ok, true);
-
-    assert.ok(response.headers.has('content-type'));
-    assert.match(response.headers.get('content-type'), /application\/json/);
-
-    const body = await response.json();
-    assert.strictEqual(body.firstname, initialBookingData.firstname);
-    assert.strictEqual(body.lastname, initialBookingData.lastname);
-    assert.strictEqual(body.totalprice, initialBookingData.totalprice);
-    assert.strictEqual(body.depositpaid, initialBookingData.depositpaid);
-    assert.deepStrictEqual(body.bookingdates, initialBookingData.bookingdates);
-    assert.strictEqual(body.additionalneeds, initialBookingData.additionalneeds);
+    assertBooking(body, initialBookingData);
   });
 
-  it('Scenario 4: Update booking using token', async () => {
+  it('updates the booking using the auth token', async () => {
     assert.ok(createdBookingId);
     assert.ok(authToken);
 
-    const response = await updateBooking(createdBookingId, updatedBookingData, authToken);
+    const response = await bookingPage.updateBooking(
+      createdBookingId,
+      updatedBookingData,
+      authToken,
+    );
+    const body = await assertJsonResponse(response, 200);
 
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.ok, true);
-
-    assert.ok(response.headers.has('content-type'));
-    assert.match(response.headers.get('content-type'), /application\/json/);
-
-    const body = await response.json();
-    assert.strictEqual(body.firstname, updatedBookingData.firstname);
-    assert.strictEqual(body.lastname, updatedBookingData.lastname);
-    assert.strictEqual(body.totalprice, updatedBookingData.totalprice);
-    assert.strictEqual(body.depositpaid, updatedBookingData.depositpaid);
-    assert.deepStrictEqual(body.bookingdates, updatedBookingData.bookingdates);
-    assert.strictEqual(body.additionalneeds, updatedBookingData.additionalneeds);
+    assertBooking(body, updatedBookingData);
   });
 
-  it('Scenario 5: Remove booking', async () => {
+  it('deletes the booking and verifies it no longer exists', async () => {
     assert.ok(createdBookingId);
     assert.ok(authToken);
 
-    const deleteResponse = await deleteBooking(createdBookingId, authToken);
-
+    const deleteResponse = await bookingPage.deleteBooking(createdBookingId, authToken);
     assert.strictEqual(deleteResponse.status, 201);
     assert.ok(deleteResponse.headers.has('content-type'));
+    assert.strictEqual(await deleteResponse.text(), 'Created');
 
-    const deleteBodyText = await deleteResponse.text();
-    assert.strictEqual(deleteBodyText, 'Created');
-
-    const verifyResponse = await getBookingById(createdBookingId);
-
+    const verifyResponse = await bookingPage.getBookingById(createdBookingId);
     assert.strictEqual(verifyResponse.status, 404);
     assert.strictEqual(verifyResponse.ok, false);
     assert.ok(verifyResponse.headers.has('content-type'));
-
-    const verifyBodyText = await verifyResponse.text();
-    assert.strictEqual(verifyBodyText, 'Not Found');
+    assert.strictEqual(await verifyResponse.text(), 'Not Found');
   });
 });

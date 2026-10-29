@@ -2,7 +2,6 @@
   "name": "testing-webservices",
   "version": "1.0.0",
   "description": "API automation testing suite for restful-booker using native fetch and Node.js test runner",
-  "main": "src/api.js",
   "type": "module",
   "scripts": {
     "test": "node --test tests/**/*.test.js",
